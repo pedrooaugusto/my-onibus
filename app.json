@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "anonibus",
-    "slug": "anonibus",
+    "name": "anonibus_pedro",
+    "slug": "anonibus_pedro",
     "platforms": [
       "ios",
       "android",
@@ -24,6 +24,6 @@
     "ios": {
       "supportsTablet": true
     },
-    "description": ""
+    "description": " Desenvolvimento de Aplicações Móveis (823) - Pedro A."
   }
 }

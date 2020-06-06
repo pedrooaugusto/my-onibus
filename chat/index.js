@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import {
   StyleSheet, View, Text, YellowBox, Image, ScrollView,
-  TextInput, TouchableOpacity
+  TextInput, TouchableOpacity, TouchableWithoutFeedback, FlatList
 } from 'react-native';
 import firebase from '../config/firebase';
 import api from '../services/axios';
@@ -15,27 +15,35 @@ export default function Chat() {
   const [caixaTexto, setCaixaTexto] = useState('')
   const [scrollview, setScrollview] = useState('')
   const [teste, setTeste] = useState('')
+  const [loading, setLoading] = useState(false)
 
-
-  const db = firebase.firestore()
-  let mensagens_enviadas = []
+  // let mensagens_enviadas = []
   const salvar = () => {
+    // dont send empty messages
+    if (!caixaTexto || loading) return
+
+    // Start loading
+    setLoading(true)
+
     api.post('/enviarMensagem', {
       mensagem: caixaTexto,
       usuario: user.name,
       avatar: user.picture,
     })
-      .then(function () {
+      .then(function (r) {
         // setMensagens([...mensagens, caixaTexto])
         setCaixaTexto('')
         scrollview.scrollToEnd({ animated: true })
       }).catch(function () {
 
+      }).finally(() => {
+        setLoading(false)
       })
   }
 
   useEffect(() => {
     carregaUsuarioAnonimo()
+    const db = firebase.firestore()
     let mensagens_enviadas = []
     const unsubscribe = db.collection("chats")
       .doc("sala_01").collection('mensagens')
@@ -47,8 +55,12 @@ export default function Chat() {
             mensagens_enviadas.push({ mensagem, usuario, avatar, id })
           }
         })
-        setMensagens([...mensagens_enviadas])
-        scrollview ? scrollview.scrollToEnd({ animated: true }) : null;
+        setMensagens(mensagens_enviadas)
+        if (scrollview) {
+          setTimeout(() => {
+            scrollview.scrollToEnd()
+          })
+        }
       })
     return () => {
       unsubscribe()
@@ -64,11 +76,53 @@ export default function Chat() {
           name: `${user.name.first} ${user.name.last}`,
           picture: user.picture.large
         })
-        console.log('user', user)
+        // console.log('user', user)
       })
       .catch(function (error) {
         console.log(error);
       });
+  }
+
+  const boldMsg = (msg) => {
+    if (typeof msg !== 'string') return <Text>{'Empty!'}</Text>
+
+    var msgs = []
+    var bolds = []
+
+    var b = null;
+    var e = null;
+    while(true) {
+      let index = msg.indexOf("*")
+      if (index === -1) {
+        if (b !== null) {
+          msgs.push("*" + msg);
+          bolds.push(false);
+        }
+        break;
+      };
+
+      if (b === null) {
+        b = index;
+        msgs.push(msg.substring(0, b));
+        bolds.push(false);
+        msg = msg.substr(b + 1);
+      } else {
+        e = index;
+        msgs.push(msg.substring(0, e));
+        bolds.push(true);
+        msg = msg.substr(e + 1);
+        e = null;
+        b = null;
+      }      
+    }
+
+    if (msgs.length === 0 ) {
+      return <Text>{msg}</Text>
+    }
+    return msgs.map((m, i) => (
+      <Text key={i} style={{ fontWeight: bolds[i] ? 'bold' : 'normal' }}>{m}</Text>
+    ))
+
   }
 
   return (
@@ -92,23 +146,36 @@ export default function Chat() {
 
       <ScrollView style={styles.scrollview} ref={(view) => { setScrollview(view) }}>
         {
-          mensagens.length > 0 && mensagens.map(item => (
+          mensagens.slice(-20).map(item => (
 
             <View key={item.id} style={styles.linha_conversa}>
               <Image style={styles.avatar_conversa} source={{ uri: item.avatar }} />
               <View style={{ flexDirection: 'column', marginTop: 5 }}>
                 <Text style={{ fontSize: 12, color: '#999' }}>{item.usuario}</Text>
-                <Text>{item.mensagem}</Text>
+                {boldMsg(item.mensagem)}
+                {/* <Text>{typeof item.mensagem === 'string' ? item.mensagem : 'Empty!'}</Text> */}
               </View>
-
             </View>
-
-
-
-
           ))
         }
       </ScrollView>
+
+      {/* <FlatList
+        ref={(view) => { setScrollview(view) }}
+        style={styles.scrollView}
+        data={mensagens}
+        inverted={-1}
+        renderItem={({ item }) => (
+          <View style={styles.linha_conversa}>
+              <Image style={styles.avatar_conversa} source={{ uri: item.avatar }} />
+              <View style={{ flexDirection: 'column', marginTop: 5 }}>
+                <Text style={{ fontSize: 12, color: '#999' }}>{item.usuario}</Text>
+                <Text>{typeof item.mensagem === 'string' ? item.mensagem : 'Empty!'}</Text>
+              </View>
+            </View>
+        )}
+        keyExtractor={item => item.id}
+      /> */}
 
 
       <View style={styles.footer}>
@@ -117,8 +184,8 @@ export default function Chat() {
           onChangeText={text => setCaixaTexto(text)}
           value={caixaTexto} />
 
-        <TouchableOpacity onPress={salvar}>
-          <Ionicons style={{ margin: 3 }} name="md-send" size={32} color={'#999'} />
+        <TouchableOpacity onPress={salvar} onp>
+          <Ionicons style={{ margin: 3 }} name={loading ? "md-refresh" : "md-send"} size={32} color={'#999'} />
         </TouchableOpacity>
       </View>
 

@@ -1,6 +1,7 @@
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const path = require('path');
+const TempratureBot = require('./TemperatureBot');
 
 
 // let serviceAccount = require("../keys/anonibus-23bbf-firebase-adminsdk-8t52x-c8fcb49974.json");
@@ -16,23 +17,27 @@ let db = admin.firestore();
 
 exports.enviarMensagem = functions.https
   .onRequest((request, response) => {
-    let queryRef = db.collection('chats').doc('sala_01')
-      .collection('mensagens').doc();
+    let queryRef = db.collection('chats').doc('sala_01').collection('mensagens').doc();
 
     queryRef.set({
       mensagem: request.body.mensagem,
       usuario: request.body.usuario,
       avatar: request.body.avatar,
     }).then(function () {
-      response.json({
-        "ok": true
-      })
-    })
-      .catch(function () {
-        response.json({
-          "error": true
+      const res = TempratureBot.match(request.body)
+      if (res) {
+        queryRef.set(res).then(() => {
+          response.json({ "ok": true, res })
+        }).catch(() => {
+          response.json({ "error": true })
         })
-      })
+      } else {
+        response.json({ "ok": true })
+      }
+
+    }).catch(function () {
+      response.json({ "error": true })
+    })
   })
 
 exports.imageUpdateFirestore = functions.storage.object().onFinalize(async (object) => {
